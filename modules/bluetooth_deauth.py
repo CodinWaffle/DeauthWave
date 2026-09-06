@@ -1,4 +1,5 @@
 import os
+import re
 import time
 import subprocess
 
@@ -84,6 +85,45 @@ def scan_bluetooth_devices(interface, scan_length=16):
     return output
 
 
+MAC_RE = re.compile(r"([0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5})")
+
+
+def get_known_devices(interface):
+    """Paired/previously-seen devices via bluetoothctl — this list survives
+    even when a device isn't currently answering inquiry scans."""
+    known = {}
+    try:
+        output = subprocess.run(
+            ["bluetoothctl", "-t", "5", "devices"],
+            capture_output=True, text=True, timeout=8,
+        ).stdout
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return known
+    for line in output.splitlines():
+        parts = line.split(maxsplit=2)
+        if len(parts) >= 2 and parts[0] == "Device" and MAC_RE.fullmatch(parts[1]):
+            known[parts[1]] = parts[2] if len(parts) > 2 else ""
+    return known
+
+
+def get_connected_macs(interface):
+    """Devices with a live ACL link right now via `hcitool con` — this is how
+    an already-connected speaker/headset shows up even though it stopped
+    responding to inquiry scans while paired to something else."""
+    connected = set()
+    try:
+        output = subprocess.run(
+            ["hcitool", "-i", interface, "con"], capture_output=True, text=True, timeout=5,
+        ).stdout
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return connected
+    for line in output.splitlines():
+        m = MAC_RE.search(line)
+        if m:
+            connected.add(m.group(1))
+    return connected
+
+
 def scan_attack():
     while True:
         banner.module_banner("bluetooth")
@@ -109,17 +149,34 @@ def scan_attack():
     lines = bluetooth_scan.splitlines()
     del lines[0]
 
+    # an inquiry scan only finds devices currently in discoverable mode — a
+    # speaker/headset already connected to something else usually stops
+    # responding to inquiries, so merge in bluetoothctl's known-devices list
+    # and hcitool's live-connection list to catch those too
+    devices = {}
+    for line in lines:
+        info = line.split()
+        if not info:
+            continue
+        devices[info[0]] = " ".join(info[1:])
+
+    known = get_known_devices(bluetooth_interface)
+    for mac, name in known.items():
+        devices.setdefault(mac, name)
+
+    connected_macs = get_connected_macs(bluetooth_interface)
+    for mac in connected_macs:
+        devices.setdefault(mac, "")
+
     array = []
     box_lines = [
-        f"{'id':<5}{'mac address':<22}{'device name'}",
-        f"{'--':<5}{'-----------':<22}{'-----------'}",
+        f"{'id':<5}{'mac address':<22}{'status':<12}{'device name'}",
+        f"{'--':<5}{'-----------':<22}{'------':<12}{'-----------'}",
     ]
-    for index, line in enumerate(lines, start=1):
-        info = line.split()
-        device_mac = info[0]
-        device_name = " ".join(info[1:])
+    for index, (device_mac, device_name) in enumerate(devices.items(), start=1):
+        status = "connected" if device_mac in connected_macs else ""
         array.append(device_mac)
-        box_lines.append(f"{index:<5}{device_mac:<22}{device_name}")
+        box_lines.append(f"{index:<5}{device_mac:<22}{status:<12}{device_name}")
 
     if not array:
         box_lines.append(f"{banner.C.MUTED}no devices found{banner.C.RESET}")
