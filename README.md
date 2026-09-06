@@ -2,7 +2,7 @@
 
 A terminal WiFi and Bluetooth deauthentication toolkit for Linux, built for authorized security testing.
 
-![AirFlood running in a terminal](docs/screenshot.png)
+<img width="773" height="427" alt="Image" src="https://github.com/user-attachments/assets/3dfd245e-9249-4106-bb10-2d7d9e98e67b" />
 
 ## What it does
 
