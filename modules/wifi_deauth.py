@@ -74,7 +74,7 @@ def select_interface():
     print()
     for index, item in enumerate(interfaces, start=1):
         print(f"  {banner.C.CYAN}[{index}]{banner.C.RESET} {item}")
-    print(f"  {banner.C.CYAN}[q]{banner.C.RESET} back to AirFlood menu")
+    print(f"  {banner.C.CYAN}[q]{banner.C.RESET} back to DeauthWave menu")
 
     while True:
         choice = banner.prompt("interface", accent=banner.C.CYAN)
@@ -125,12 +125,27 @@ def _render_scan_screen(elapsed, tick):
     bar = banner.progress_bar(elapsed, SCAN_DURATION, bar_width=bar_width, accent=banner.C.CYAN)
     remaining = max(0, round(SCAN_DURATION - elapsed))
 
+    lines = [
+        f"{spin}  {bar}",
+        f"{remaining:>2}s left  ·  {len(active_wireless_network)} access point(s) found",
+        "",
+        f"{'essid':<24}{'bssid':<20}{'speed'}",
+        f"{'-----':<24}{'-----':<20}{'-----'}",
+    ]
+    for item in active_wireless_network:
+        speed = (item.get("Speed") or "").strip()
+        speed_display = f"{speed}Mb/s" if speed else "-"
+        essid = (item["ESSID"] or "").strip()
+        if len(essid) > 22:
+            essid = essid[:21] + "…"
+        lines.append(f"{essid:<24}{item['BSSID']:<20}{speed_display}")
+    if not active_wireless_network:
+        lines.append(f"{banner.C.MUTED}no access points found yet...{banner.C.RESET}")
+    lines.append("")
+    lines.append(f"{banner.C.MUTED}press ctrl+c to stop early{banner.C.RESET}")
+
     banner.box(
-        [
-            f"{spin}  {bar}",
-            f"{remaining:>2}s left  ·  {len(active_wireless_network)} access point(s) found",
-            f"{banner.C.MUTED}press ctrl+c to stop early{banner.C.RESET}",
-        ],
+        lines,
         title="scanning for access points",
         accent=banner.C.CYAN,
     )

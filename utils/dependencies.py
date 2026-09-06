@@ -1,6 +1,6 @@
 """Startup environment check: Linux-only, and makes sure the required
-command-line tools (aircrack-ng suite + bluez utilities) are installed
-before the AirFlood menu loads."""
+command-line tools (the aircrack-ng suite) are installed before the
+DeauthWave menu loads."""
 
 import os
 import platform
@@ -14,9 +14,6 @@ REQUIRED_TOOLS = {
     "airmon-ng": "aircrack-ng",
     "airodump-ng": "aircrack-ng",
     "aireplay-ng": "aircrack-ng",
-    "hciconfig": "bluez",
-    "hcitool": "bluez",
-    "l2ping": "bluez",
 }
 
 
@@ -35,15 +32,15 @@ def detect_distro():
 
 def check_platform():
     if platform.system() != "Linux":
-        banner.error(f"AirFlood only runs on Linux — detected: {platform.system()}.")
-        banner.error("monitor-mode wifi and raw bluetooth sockets aren't available on this OS.")
+        banner.error(f"DeauthWave only runs on Linux — detected: {platform.system()}.")
+        banner.error("monitor-mode wifi and packet injection aren't available on this OS.")
         banner.info("run this on Kali Linux or Parrot OS (or another Debian-based Linux).")
         raise SystemExit(1)
 
     distro = detect_distro()
     banner.ok(f"platform ok: linux — {distro}")
     if "kali" not in distro.lower() and "parrot" not in distro.lower():
-        banner.warn("AirFlood is built & tested on Kali Linux and Parrot OS.")
+        banner.warn("DeauthWave is built & tested on Kali Linux and Parrot OS.")
         banner.warn(f"'{distro}' may still work if it's Debian-based, but isn't officially tested.")
 
 
@@ -51,8 +48,8 @@ def check_root():
     # os.geteuid() is POSIX-only — safe to call here since check_platform()
     # already confirmed we're on Linux before this runs
     if os.geteuid() != 0:
-        banner.error("AirFlood must be run as root.")
-        banner.info("it drives airmon-ng, airodump-ng, aireplay-ng, hciconfig, and l2ping directly,")
+        banner.error("DeauthWave must be run as root.")
+        banner.info("it drives airmon-ng, airodump-ng, and aireplay-ng directly,")
         banner.info("all of which need raw device access.")
         banner.info("run it again with: sudo python3 main.py")
         raise SystemExit(1)
@@ -84,7 +81,7 @@ def ensure_dependencies():
 
     missing = missing_tools()
     if not missing:
-        banner.ok("all required tools found (aircrack-ng, bluez)")
+        banner.ok("all required tools found (aircrack-ng)")
         return
 
     packages = sorted(set(missing.values()))
@@ -93,7 +90,7 @@ def ensure_dependencies():
 
     choice = banner.prompt("install missing dependencies now? [Y/n]")
     if choice.strip().lower() not in ("", "y", "yes"):
-        banner.error("AirFlood needs these tools to run. install them and try again.")
+        banner.error("DeauthWave needs these tools to run. install them and try again.")
         raise SystemExit(1)
 
     if not install_packages(packages):

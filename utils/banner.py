@@ -1,4 +1,4 @@
-"""Terminal theming for AirFlood: colors, banner, and menu rendering."""
+"""Terminal theming for DeauthWave: colors, banner, and menu rendering."""
 
 import os
 import re
@@ -8,43 +8,61 @@ _ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 
 class BackToMenu(Exception):
-    """Raised by a module to unwind back to the AirFlood main menu instead of exiting."""
+    """Raised by a module to unwind back to the DeauthWave main menu instead of exiting."""
 
 
 class C:
-    """ANSI color codes — electric blue / cyan storm theme."""
+    """ANSI color codes — dark monochrome teal theme: a single hue at rising
+    brightness, not a multi-hue spectrum, for a plain black-terminal/hacker
+    look rather than a rainbow gradient."""
     RESET = "\033[0m"
     BOLD = "\033[1m"
     DIM = "\033[2m"
 
-    # gradient shades used for the logo, dark -> bright
-    NAVY = "\033[38;5;25m"
-    BLUE = "\033[38;5;33m"
-    SKY = "\033[38;5;39m"
-    CYAN = "\033[38;5;45m"
-    ICE = "\033[38;5;51m"
+    # logo gradient, top -> bottom: same teal hue throughout, just dimmer at
+    # the top and brighter at the bottom — deliberately single-hue so it
+    # never reads as a multi-color spectrum
+    TEAL_DARK = "\033[38;5;23m"
+    SKY = "\033[38;5;30m"
+    CYAN = "\033[38;5;37m"
+    ICE = "\033[38;5;44m"
     WHITE = "\033[38;5;231m"
 
-    ACCENT = "\033[38;5;51m"   # bright ice-cyan accents / borders
+    ACCENT = "\033[38;5;44m"   # deep-teal accents / borders
     MUTED = "\033[38;5;67m"    # muted steel-blue for secondary text
     WARN = "\033[38;5;208m"
     DANGER = "\033[38;5;196m"
     OK = "\033[38;5;48m"
 
 
-LOGO_LINES = [
-    r" █████╗ ██╗██████╗ ███████╗██╗      ██████╗  ██████╗ ██████╗ ",
-    r"██╔══██╗██║██╔══██╗██╔════╝██║     ██╔═══██╗██╔═══██╗██╔══██╗",
-    r"███████║██║██████╔╝█████╗  ██║     ██║   ██║██║   ██║██║  ██║",
-    r"██╔══██║██║██╔══██╗██╔══╝  ██║     ██║   ██║██║   ██║██║  ██║",
-    r"██║  ██║██║██║  ██║██║     ███████╗╚██████╔╝╚██████╔╝██████╔╝",
-    r"╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚═╝     ╚══════╝ ╚═════╝  ╚═════╝ ╚═════╝ ",
+# full block-letter wordmark, one continuous word — not split across two
+# lines, so "DEAUTHWAVE" reads as one name instead of two stacked halves.
+# 86 columns wide, so banner() only uses this on a wide-enough terminal
+# (see BIG_LOGO_MIN_WIDTH) and falls back to the compact LOGO_LINES below
+# on anything narrower, same defensive pattern as everywhere else here.
+BIG_LOGO_LINES = [
+    r"██████╗ ███████╗ █████╗ ██╗   ██╗████████╗██╗  ██╗ ██╗    ██╗ █████╗ ██╗   ██╗███████╗",
+    r"██╔══██╗██╔════╝██╔══██╗██║   ██║╚══██╔══╝██║  ██║ ██║    ██║██╔══██╗██║   ██║██╔════╝",
+    r"██║  ██║█████╗  ███████║██║   ██║   ██║   ███████║ ██║ █╗ ██║███████║██║   ██║█████╗  ",
+    r"██║  ██║██╔══╝  ██╔══██║██║   ██║   ██║   ██╔══██║ ██║███╗██║██╔══██║╚██╗ ██╔╝██╔══╝  ",
+    r"██████╔╝███████╗██║  ██║╚██████╔╝   ██║   ██║  ██║ ╚███╔███╔╝██║  ██║ ╚████╔╝ ███████╗",
+    r"╚═════╝ ╚══════╝╚═╝  ╚═╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝  ╚══╝╚══╝ ╚═╝  ╚═╝  ╚═══╝  ╚══════╝",
 ]
 
-# one gradient shade per logo line, dark navy fading into bright ice-cyan
-LOGO_GRADIENT = [C.NAVY, C.BLUE, C.SKY, C.CYAN, C.ICE, C.ICE]
+# single teal hue, dim at the top and brightening toward the bottom
+BIG_LOGO_GRADIENT = [C.TEAL_DARK, C.TEAL_DARK, C.SKY, C.CYAN, C.CYAN, C.ICE]
 
-TAGLINE = "wireless deauthentication toolkit"
+# narrow-terminal fallback: a single compact line, safe down to width()'s floor
+LOGO_LINES = [
+    r"▂▄▆█   D E A U T H W A V E   █▆▄▂",
+]
+LOGO_GRADIENT = [C.SKY]
+
+# BIG_LOGO_LINES is 86 columns wide — require a bit more than that so it
+# never sits flush against the terminal edge
+BIG_LOGO_MIN_WIDTH = 90
+
+TAGLINE = "wi-fi deauthentication toolkit"
 GITHUB_LINK = "github.com/CodinWaffle"
 LINKEDIN_LINK = "linkedin.com/in/jose-martin-r-imperial-53a2b429a"
 
@@ -55,11 +73,6 @@ MODULE_THEMES = {
         "accent": C.CYAN,
         "glyph_line": "▂▄▆█   W I F I   D E A U T H   █▆▄▂",
         "subtitle": "access point discovery & deauthentication",
-    },
-    "bluetooth": {
-        "accent": "\033[38;5;69m",  # steel indigo — distinct from wifi's cyan, same family
-        "glyph_line": "ᛒ─   B L U E T O O T H   D E A U T H   ─ᛒ",
-        "subtitle": "device discovery & l2ping flood",
     },
 }
 
@@ -92,7 +105,8 @@ def hr(char="─", color=C.MUTED):
 def banner():
     clear()
     w = width()
-    for line, shade in zip(LOGO_LINES, LOGO_GRADIENT):
+    lines, gradient = (BIG_LOGO_LINES, BIG_LOGO_GRADIENT) if w >= BIG_LOGO_MIN_WIDTH else (LOGO_LINES, LOGO_GRADIENT)
+    for line, shade in zip(lines, gradient):
         print(f"{shade}{C.BOLD}{line.center(w)}{C.RESET}")
     print(f"{C.MUTED}{TAGLINE.center(w)}{C.RESET}")
     print()
@@ -110,12 +124,12 @@ def banner():
 
 
 def module_banner(module):
-    """Clear the screen and show the sub-banner for a specific module (wifi/bluetooth)."""
+    """Clear the screen and show the sub-banner for a specific module (wifi)."""
     theme = MODULE_THEMES[module]
     accent = theme["accent"]
     clear()
     w = width()
-    print(f"{C.MUTED}{'AIRFLOOD'.center(w)}{C.RESET}")
+    print(f"{C.MUTED}{'DEAUTHWAVE'.center(w)}{C.RESET}")
     print(f"{accent}{C.BOLD}{theme['glyph_line'].center(w)}{C.RESET}")
     print(f"{C.MUTED}{theme['subtitle'].center(w)}{C.RESET}")
     print()
@@ -128,7 +142,7 @@ def section(title, accent=None):
 
 def prompt(label="select an option", accent=None):
     accent = accent or C.ACCENT
-    return input(f"{C.CYAN}{C.BOLD}airflood{C.RESET}{C.MUTED} ❯ {C.RESET}{label} {accent}» {C.RESET}").strip()
+    return input(f"{C.CYAN}{C.BOLD}deauthwave{C.RESET}{C.MUTED} ❯ {C.RESET}{label} {accent}» {C.RESET}").strip()
 
 
 def menu(options, label="select an option", accent=None):
@@ -238,8 +252,7 @@ if __name__ == "__main__":
     choice = menu(
         [
             ("1", "WiFi Deauth", "target a wireless access point"),
-            ("2", "Bluetooth Deauth", "target a bluetooth device"),
-            ("3", "Exit", "quit AirFlood"),
+            ("2", "Exit", "quit DeauthWave"),
         ]
     )
     print(f"\nyou picked: {choice}")
