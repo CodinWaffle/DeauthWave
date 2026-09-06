@@ -74,7 +74,7 @@ def select_interface():
     print()
     for index, item in enumerate(interfaces, start=1):
         print(f"  {banner.C.CYAN}[{index}]{banner.C.RESET} {item}")
-    print(f"  {banner.C.CYAN}[q]{banner.C.RESET} back to DeauthWave menu")
+    print(f"  {banner.C.CYAN}[q]{banner.C.RESET} exit")
 
     while True:
         choice = banner.prompt("interface", accent=banner.C.CYAN)
@@ -235,9 +235,17 @@ def scan_networks(interface):
             banner.info("(it exited with no output — likely killed by a signal, e.g. an early ctrl+c)")
 
 
-def select_target():
+def select_target(mon_interface):
     while True:
+        print(f"  {banner.C.CYAN}[r]{banner.C.RESET} scan again")
+        print(f"  {banner.C.CYAN}[q]{banner.C.RESET} exit")
         choice = banner.prompt("target", accent=banner.C.CYAN)
+        if choice.lower() in ("q", "b"):
+            raise banner.BackToMenu()
+        if choice.lower() in ("r", "rescan"):
+            active_wireless_network.clear()
+            scan_networks(mon_interface)
+            continue
         try:
             return active_wireless_network[int(choice)]
         except (ValueError, IndexError):
@@ -268,7 +276,7 @@ def run():
         interface = select_interface()
         mon_interface = prepare_monitor_mode(interface)
         scan_networks(mon_interface)
-        target = select_target()
+        target = select_target(mon_interface)
         launch_attack(mon_interface, target)
     finally:
         # always sweep up this run's airodump-ng .csv files, whether the attack

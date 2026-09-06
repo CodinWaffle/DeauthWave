@@ -102,8 +102,10 @@ def hr(char="─", color=C.MUTED):
     print(f"{color}{char * width()}{C.RESET}")
 
 
-def banner():
-    clear()
+def _print_logo_and_links():
+    """Shared by banner() and module_banner(): the big/compact wordmark, tagline,
+    and the GitHub/LinkedIn links box. Returns the terminal width used, so
+    callers can keep centering any lines they print after this."""
     w = width()
     lines, gradient = (BIG_LOGO_LINES, BIG_LOGO_GRADIENT) if w >= BIG_LOGO_MIN_WIDTH else (LOGO_LINES, LOGO_GRADIENT)
     for line, shade in zip(lines, gradient):
@@ -119,17 +121,24 @@ def banner():
         accent=C.ACCENT,
         w=w,
     )
+    return w
+
+
+def banner():
+    clear()
+    _print_logo_and_links()
     print()
     hr()
 
 
 def module_banner(module):
-    """Clear the screen and show the sub-banner for a specific module (wifi)."""
+    """Clear the screen and show the sub-banner for a specific module (wifi),
+    reusing the same wordmark + links block as the environment check screen."""
     theme = MODULE_THEMES[module]
     accent = theme["accent"]
     clear()
-    w = width()
-    print(f"{C.MUTED}{'DEAUTHWAVE'.center(w)}{C.RESET}")
+    w = _print_logo_and_links()
+    print()
     print(f"{accent}{C.BOLD}{theme['glyph_line'].center(w)}{C.RESET}")
     print(f"{C.MUTED}{theme['subtitle'].center(w)}{C.RESET}")
     print()
