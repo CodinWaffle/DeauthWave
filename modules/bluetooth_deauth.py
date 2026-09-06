@@ -33,9 +33,11 @@ def ensure_interface_up(interface):
 def get_bluetooth_interface():
     banner.module_banner("bluetooth")
     banner.section("select a bluetooth interface", accent=ACCENT)
-    interfaces = subprocess.check_output(
-        "hciconfig | grep -E 'hci[0-9]+:|Bus|UP RUNNING|DOWN'", shell=True, text=True
+    result = subprocess.run(
+        "hciconfig | grep -E 'hci[0-9]+:|Bus|UP RUNNING|DOWN'",
+        shell=True, capture_output=True, text=True,
     )
+    interfaces = result.stdout
     # hciconfig's output uses raw tabs, which expand to inconsistent widths
     # depending on the terminal's tab stops — normalize to spaces so the
     # box border stays aligned regardless
