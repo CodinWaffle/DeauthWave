@@ -66,14 +66,13 @@ TAGLINE = "wi-fi deauthentication toolkit"
 GITHUB_LINK = "github.com/CodinWaffle"
 LINKEDIN_LINK = "linkedin.com/in/jose-martin-r-imperial-53a2b429a"
 
-# per-module sub-banners: same storm palette, distinct accent so the screen
-# is instantly recognizable as "not the main menu anymore" — just one line,
-# since the big wordmark above already carries the app's branding and a
-# second wave-bracketed heading right under it read as two stacked logos
+# per-module sub-banners: same wordmark as the environment check screen,
+# just a distinct accent color for the closing rule so the screen still
+# reads as "not the main menu anymore" without stacking a second heading
+# under the big wordmark
 MODULE_THEMES = {
     "wifi": {
         "accent": C.CYAN,
-        "subtitle": "WIFI DEAUTH · access point discovery & deauthentication",
     },
 }
 
@@ -138,9 +137,7 @@ def module_banner(module):
     theme = MODULE_THEMES[module]
     accent = theme["accent"]
     clear()
-    w = _print_logo_and_links()
-    print()
-    print(f"{accent}{C.BOLD}{theme['subtitle'].center(w)}{C.RESET}")
+    _print_logo_and_links()
     print()
     hr(color=accent)
 
