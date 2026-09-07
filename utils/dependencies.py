@@ -33,11 +33,11 @@ def detect_distro():
         return "unknown Linux distro"
 
 
-def _render_checklist(rows, spin_tick=0):
+def _render_checklist(rows, prev_lines, spin_tick=0):
     """rows: list of (label, detail, status) with status 'pending' / 'ok' / 'fail'.
-    Redraws only the box itself (via restore_cursor) instead of re-clearing the
-    whole screen and reprinting the big logo/links block on every tick."""
-    banner.restore_cursor()
+    Rewinds only the box's own line count instead of re-clearing the whole
+    screen and reprinting the big logo/links block on every tick."""
+    banner.rewind(prev_lines)
 
     lines = []
     for label, detail, status in rows:
@@ -51,22 +51,22 @@ def _render_checklist(rows, spin_tick=0):
             icon = f"{banner.C.DANGER}{banner.C.BOLD}✗{banner.C.RESET}"
             lines.append(f"{icon}  {label:<16}{banner.C.DANGER}{detail}{banner.C.RESET}")
 
-    banner.box(lines, title="system check", accent=banner.C.CYAN)
+    return banner.box(lines, title="system check", accent=banner.C.CYAN)
 
 
-def _run_check(rows, index, check_fn):
+def _run_check(rows, index, check_fn, prev_lines):
     """Animate a spinner on rows[index] while "checking", then lock in the result.
-    check_fn takes no args and returns (ok, detail)."""
+    check_fn takes no args and returns (ok, detail). Returns (ok, prev_lines)."""
     ticks = max(1, int(CHECK_SPIN_SECONDS / 0.08))
     for tick in range(ticks):
-        _render_checklist(rows, spin_tick=tick)
+        prev_lines = _render_checklist(rows, prev_lines, spin_tick=tick)
         time.sleep(0.08)
 
     ok, detail = check_fn()
     label = rows[index][0]
     rows[index] = (label, detail, "ok" if ok else "fail")
-    _render_checklist(rows)
-    return ok
+    prev_lines = _render_checklist(rows, prev_lines)
+    return ok, prev_lines
 
 
 def _check_platform():
@@ -109,9 +109,10 @@ def ensure_dependencies():
 
     banner.banner()
     banner.section("environment check", accent=banner.C.CYAN)
-    banner.save_cursor()
+    prev_lines = 0
 
-    if not _run_check(rows, 0, _check_platform):
+    ok, prev_lines = _run_check(rows, 0, _check_platform, prev_lines)
+    if not ok:
         banner.error("DeauthWave only runs on Linux.")
         banner.info("monitor-mode wifi and packet injection aren't available on this OS.")
         banner.info("run this on Kali Linux or Parrot OS (or another Debian-based Linux).")
@@ -122,7 +123,8 @@ def ensure_dependencies():
         banner.warn("DeauthWave is built & tested on Kali Linux and Parrot OS.")
         banner.warn(f"'{distro}' may still work if it's Debian-based, but isn't officially tested.")
 
-    if not _run_check(rows, 1, _check_root):
+    ok, prev_lines = _run_check(rows, 1, _check_root, prev_lines)
+    if not ok:
         banner.error("DeauthWave must be run as root.")
         banner.info("it drives airmon-ng, airodump-ng, and aireplay-ng directly,")
         banner.info("all of which need raw device access.")
@@ -130,7 +132,7 @@ def ensure_dependencies():
         raise SystemExit(1)
 
     for i, tool in enumerate(REQUIRED_TOOLS, start=2):
-        _run_check(rows, i, lambda t=tool: _check_tool(t))
+        _, prev_lines = _run_check(rows, i, lambda t=tool: _check_tool(t), prev_lines)
 
     missing = [tool for tool, _, status in rows[2:] if status == "fail"]
     if not missing:
@@ -152,7 +154,7 @@ def ensure_dependencies():
 
     for i, tool in enumerate(REQUIRED_TOOLS, start=2):
         if rows[i][2] == "fail":
-            _run_check(rows, i, lambda t=tool: _check_tool(t))
+            _, prev_lines = _run_check(rows, i, lambda t=tool: _check_tool(t), prev_lines)
 
     still_missing = [tool for tool, _, status in rows[2:] if status == "fail"]
     if still_missing:

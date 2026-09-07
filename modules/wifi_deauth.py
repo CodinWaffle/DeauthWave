@@ -116,11 +116,11 @@ def prepare_monitor_mode(interface):
 SCAN_DURATION = 30  # seconds
 
 
-def _render_scan_screen(elapsed, tick):
-    # redraw only the box (via restore_cursor) instead of re-clearing the whole
+def _render_scan_screen(elapsed, tick, prev_lines):
+    # rewind only the box's own line count instead of re-clearing the whole
     # screen and reprinting the big logo/links block on every tick — that full
     # redraw is what made the scan screen feel slow and flickery
-    banner.restore_cursor()
+    banner.rewind(prev_lines)
 
     # the bar shrinks to fit whatever's left inside the box after borders/
     # padding, so nothing can ever be wider than the box itself
@@ -148,15 +148,15 @@ def _render_scan_screen(elapsed, tick):
     lines.append("")
     lines.append(f"{banner.C.MUTED}press ctrl+c to stop early{banner.C.RESET}")
 
-    banner.box(
+    return banner.box(
         lines,
         title="scanning for access points",
         accent=banner.C.CYAN,
     )
 
 
-def _render_results_screen():
-    banner.restore_cursor()
+def _render_results_screen(prev_lines):
+    banner.rewind(prev_lines)
 
     lines = [
         f"{'no':<4}{'bssid':<20}{'ch':<5}{'speed':<9}{'essid'}",
@@ -174,7 +174,7 @@ def _render_results_screen():
     lines.append(f"{banner.C.CYAN}[r]{banner.C.RESET} scan again")
     lines.append(f"{banner.C.CYAN}[q]{banner.C.RESET} exit")
 
-    banner.box(lines, title="access points found", accent=banner.C.CYAN)
+    return banner.box(lines, title="access points found", accent=banner.C.CYAN)
 
 
 def scan_networks(interface):
@@ -184,7 +184,7 @@ def scan_networks(interface):
 
     banner.module_banner("wifi")
     banner.section("scanning for access points", accent=banner.C.CYAN)
-    banner.save_cursor()
+    prev_lines = 0
 
     scan_proc = subprocess.Popen(
         ["sudo", "airodump-ng", "-w", "file", "--write-interval", "1", "--output-format", "csv",
@@ -213,7 +213,7 @@ def scan_networks(interface):
                             if check_for_essid(row["ESSID"], active_wireless_network):
                                 active_wireless_network.append(row)
 
-            _render_scan_screen(elapsed, tick)
+            prev_lines = _render_scan_screen(elapsed, tick, prev_lines)
             tick += 1
 
             if elapsed >= SCAN_DURATION:
@@ -233,11 +233,11 @@ def scan_networks(interface):
         if scan_proc.poll() is None:
             scan_proc.terminate()
 
-    _render_results_screen()
+    _render_results_screen(prev_lines)
     banner.ok(f"scan complete, found {len(active_wireless_network)} network(s)")
 
-    # print this AFTER the results screen's clear() so it doesn't get wiped
-    # before the user has a chance to read why airodump-ng stopped early
+    # print this AFTER the results screen so it doesn't get wiped by a later
+    # rewind() before the user has a chance to read why airodump-ng stopped early
     if early_exit_output is not None:
         banner.warn("airodump-ng exited before the scan timer finished")
         if early_exit_output:
@@ -265,10 +265,10 @@ def select_target(mon_interface):
 ATTACK_LOG_LINES = 12  # how many recent aireplay-ng lines stay visible in the box
 
 
-def _render_attack_screen(tick, target, log_lines):
-    # redraw only the box (via restore_cursor) instead of re-clearing the whole
+def _render_attack_screen(tick, target, log_lines, prev_lines):
+    # rewind only the box's own line count instead of re-clearing the whole
     # screen and reprinting the big logo/links block on every new log line
-    banner.restore_cursor()
+    banner.rewind(prev_lines)
 
     spin = banner.spinner_frame(tick, accent=banner.C.CYAN)
 
@@ -287,7 +287,7 @@ def _render_attack_screen(tick, target, log_lines):
     lines.append("")
     lines.append(f"{banner.C.MUTED}press ctrl+c to stop{banner.C.RESET}")
 
-    banner.box(lines, title="aireplay-ng log", accent=banner.C.CYAN)
+    return banner.box(lines, title="aireplay-ng log", accent=banner.C.CYAN)
 
 
 def launch_attack(mon_interface, target):
@@ -308,7 +308,7 @@ def launch_attack(mon_interface, target):
 
     banner.module_banner("wifi")
     banner.section("deauthentication attack running", accent=banner.C.CYAN)
-    banner.save_cursor()
+    prev_lines = 0
 
     # give aireplay-ng a real pty instead of a plain pipe for its output —
     # a plain pipe makes it detect a non-terminal and switch to full block
@@ -343,7 +343,7 @@ def launch_attack(mon_interface, target):
                     log_lines.append(line)
                     del log_lines[:-ATTACK_LOG_LINES]
 
-            _render_attack_screen(tick, target, log_lines)
+            prev_lines = _render_attack_screen(tick, target, log_lines, prev_lines)
             tick += 1
     except KeyboardInterrupt:
         pass

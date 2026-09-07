@@ -98,19 +98,25 @@ def clear():
     print("\033[2J\033[3J\033[H", end="", flush=True)
 
 
-def save_cursor():
-    """Mark the current cursor position so a later restore_cursor() can redraw
-    only what comes after it (see restore_cursor)."""
-    print("\0337", end="", flush=True)
+def rewind(n_lines):
+    """Move the cursor up n_lines and erase everything from there to the end
+    of the screen, so a fast-repeating redraw (a progress bar, a live log, a
+    spinner) only repaints the region it printed last time instead of
+    re-clearing the whole screen and reprinting the big logo + links box
+    every tick.
 
-
-def restore_cursor():
-    """Jump back to the last save_cursor() position and erase everything below
-    it, so a fast-repeating redraw (a progress bar, a live log, a spinner)
-    only repaints its own small region instead of re-clearing the whole
-    screen and reprinting the big logo + links box every tick — that full
-    redraw is what made those screens feel slow and flickery."""
-    print("\0338\033[0J", end="", flush=True)
+    Uses relative cursor movement rather than absolute save/restore
+    (the older \\0337/\\0338 approach) — save/restore remembers a fixed
+    screen row, which breaks the moment the terminal has to scroll (e.g. the
+    header + a growing log box no longer fit in the window): the "restored"
+    row no longer lines up with the content that scrolled along with it,
+    producing a cascading, staircased redraw. Relative movement has no such
+    assumption, since it's always anchored to wherever the cursor currently
+    is — which is always right after whatever this same function printed
+    last time."""
+    if n_lines > 0:
+        print(f"\033[{n_lines}A", end="")
+    print("\033[0J", end="", flush=True)
 
 
 def hr(char="─", color=C.MUTED):
@@ -247,7 +253,9 @@ def _truncate_visible(s, n):
 def box(lines, title=None, accent=None, w=None):
     """Print a bordered box around a list of (possibly ANSI-colored) lines.
     Every line is padded or truncated to fit exactly inside the border, so
-    content can never spill outside it regardless of terminal-width quirks."""
+    content can never spill outside it regardless of terminal-width quirks.
+    Returns how many terminal rows it printed (lines + top/bottom border),
+    so a caller doing repeated redraws can pass that to rewind()."""
     accent = accent or C.ACCENT
     w = w or width()
     inner = w - 4  # "│ " + content + " │"
@@ -265,6 +273,7 @@ def box(lines, title=None, accent=None, w=None):
         print(f"{accent}│{C.RESET} {line}{' ' * pad} {accent}│{C.RESET}")
 
     print(f"{accent}╰{'─' * (w - 2)}╯{C.RESET}")
+    return len(lines) + 2
 
 
 if __name__ == "__main__":
