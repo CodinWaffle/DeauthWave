@@ -1,8 +1,8 @@
 # DeauthWave
 
-A terminal Wi-Fi (802.11) deauthentication toolkit for Linux, built for authorized security testing.
+![DeauthWave](assets/screenshots/banner.png)
 
-<img width="773" height="427" alt="Image" src="https://github.com/user-attachments/assets/3dfd245e-9249-4106-bb10-2d7d9e98e67b" />
+A terminal Wi-Fi (802.11) deauthentication toolkit for Linux, built for authorized security testing.
 
 ## What it does
 
@@ -22,6 +22,20 @@ flowchart TD
     Again -->|enter| W1
     Again -->|q| Exit2(["exit"])
 ```
+
+## Screenshots
+
+**Select a wireless interface**
+
+![Select a wireless interface](assets/screenshots/01-select-interface.png)
+
+**Scan for nearby access points**
+
+![Scanning for access points](assets/screenshots/02-scanning.png)
+
+**Send the deauth attack**
+
+![Deauthentication attack running](assets/screenshots/03-deauth-attack.png)
 
 ## Before you use this
 
