@@ -98,6 +98,21 @@ def clear():
     print("\033[2J\033[3J\033[H", end="", flush=True)
 
 
+def save_cursor():
+    """Mark the current cursor position so a later restore_cursor() can redraw
+    only what comes after it (see restore_cursor)."""
+    print("\0337", end="", flush=True)
+
+
+def restore_cursor():
+    """Jump back to the last save_cursor() position and erase everything below
+    it, so a fast-repeating redraw (a progress bar, a live log, a spinner)
+    only repaints its own small region instead of re-clearing the whole
+    screen and reprinting the big logo + links box every tick — that full
+    redraw is what made those screens feel slow and flickery."""
+    print("\0338\033[0J", end="", flush=True)
+
+
 def hr(char="─", color=C.MUTED):
     print(f"{color}{char * width()}{C.RESET}")
 

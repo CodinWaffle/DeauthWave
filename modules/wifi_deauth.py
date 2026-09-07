@@ -116,7 +116,10 @@ SCAN_DURATION = 30  # seconds
 
 
 def _render_scan_screen(elapsed, tick):
-    banner.module_banner("wifi")
+    # redraw only the box (via restore_cursor) instead of re-clearing the whole
+    # screen and reprinting the big logo/links block on every tick — that full
+    # redraw is what made the scan screen feel slow and flickery
+    banner.restore_cursor()
 
     # the bar shrinks to fit whatever's left inside the box after borders/
     # padding, so nothing can ever be wider than the box itself
@@ -152,7 +155,7 @@ def _render_scan_screen(elapsed, tick):
 
 
 def _render_results_screen():
-    banner.module_banner("wifi")
+    banner.restore_cursor()
 
     lines = [
         f"{'no':<4}{'bssid':<20}{'ch':<5}{'speed':<9}{'essid'}",
@@ -177,6 +180,10 @@ def scan_networks(interface):
     fieldnames = ["BSSID", "First_time_seen", "Last_time_seen", "channel", "Speed", "Privacy",
                   "Cipher", "Authentication", "Power", "beacons", "IV", "LAN_IP", "ID_length",
                   "ESSID", "Key"]
+
+    banner.module_banner("wifi")
+    banner.section("scanning for access points", accent=banner.C.CYAN)
+    banner.save_cursor()
 
     scan_proc = subprocess.Popen(
         ["sudo", "airodump-ng", "-w", "file", "--write-interval", "1", "--output-format", "csv",
@@ -258,8 +265,10 @@ ATTACK_LOG_LINES = 12  # how many recent aireplay-ng lines stay visible in the b
 
 
 def _render_attack_screen(tick, target, log_lines):
-    banner.module_banner("wifi")
-    banner.section("deauthentication attack running", accent=banner.C.CYAN)
+    # redraw only the box (via restore_cursor) instead of re-clearing the whole
+    # screen and reprinting the big logo/links block on every new log line —
+    # that full redraw is what made the live attack log feel slow and flickery
+    banner.restore_cursor()
 
     spin = banner.spinner_frame(tick, accent=banner.C.CYAN)
 
@@ -296,6 +305,10 @@ def launch_attack(mon_interface, target):
     # otherwise aireplay-ng listens on whatever channel it was last left on
     # and never sees the target's beacon frames
     subprocess.run(["sudo", "iwconfig", mon_interface, "channel", channel])
+
+    banner.module_banner("wifi")
+    banner.section("deauthentication attack running", accent=banner.C.CYAN)
+    banner.save_cursor()
 
     attack_proc = subprocess.Popen(
         ["sudo", "aireplay-ng", "--deauth", "0", "-a", bssid, mon_interface],

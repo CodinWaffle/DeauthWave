@@ -34,9 +34,10 @@ def detect_distro():
 
 
 def _render_checklist(rows, spin_tick=0):
-    """rows: list of (label, detail, status) with status 'pending' / 'ok' / 'fail'."""
-    banner.banner()
-    banner.section("environment check", accent=banner.C.CYAN)
+    """rows: list of (label, detail, status) with status 'pending' / 'ok' / 'fail'.
+    Redraws only the box itself (via restore_cursor) instead of re-clearing the
+    whole screen and reprinting the big logo/links block on every tick."""
+    banner.restore_cursor()
 
     lines = []
     for label, detail, status in rows:
@@ -105,6 +106,10 @@ def ensure_dependencies():
         ("privileges", "", "pending"),
         *[(tool, "", "pending") for tool in REQUIRED_TOOLS],
     ]
+
+    banner.banner()
+    banner.section("environment check", accent=banner.C.CYAN)
+    banner.save_cursor()
 
     if not _run_check(rows, 0, _check_platform):
         banner.error("DeauthWave only runs on Linux.")
