@@ -1,6 +1,15 @@
 # DeauthWave
 
-![DeauthWave](assets/screenshots/banner.png)
+```
+██████╗ ███████╗ █████╗ ██╗   ██╗████████╗██╗  ██╗ ██╗    ██╗ █████╗ ██╗   ██╗███████╗
+██╔══██╗██╔════╝██╔══██╗██║   ██║╚══██╔══╝██║  ██║ ██║    ██║██╔══██╗██║   ██║██╔════╝
+██║  ██║█████╗  ███████║██║   ██║   ██║   ███████║ ██║ █╗ ██║███████║██║   ██║█████╗  
+██║  ██║██╔══╝  ██╔══██║██║   ██║   ██║   ██╔══██║ ██║███╗██║██╔══██║╚██╗ ██╔╝██╔══╝  
+██████╔╝███████╗██║  ██║╚██████╔╝   ██║   ██║  ██║ ╚███╔███╔╝██║  ██║ ╚████╔╝ ███████╗
+╚═════╝ ╚══════╝╚═╝  ╚═╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝  ╚══╝╚══╝ ╚═╝  ╚═╝  ╚═══╝  ╚══════╝
+
+                            wi-fi deauthentication toolkit
+```
 
 A terminal Wi-Fi (802.11) deauthentication toolkit for Linux, built for authorized security testing.
 
@@ -39,7 +48,7 @@ flowchart TD
 
 ## Before you use this
 
-Only point DeauthWave at networks you own, or have explicit written permission to test — a pentest scope, a CTF, your own lab. Deauthing someone else's WiFi without permission is illegal in most places and you're on your own if you do it.
+Only point DeauthWave at networks you own, or have explicit written permission to test — a pentest scope or your own lab. Deauthing someone else's WiFi without permission is illegal in most places and you're on your own if you do it.
 
 ## Where this is at
 
