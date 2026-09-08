@@ -1,5 +1,7 @@
 # DeauthWave
 
+<div align="center">
+
 ```
 ██████╗ ███████╗ █████╗ ██╗   ██╗████████╗██╗  ██╗ ██╗    ██╗ █████╗ ██╗   ██╗███████╗
 ██╔══██╗██╔════╝██╔══██╗██║   ██║╚══██╔══╝██║  ██║ ██║    ██║██╔══██╗██║   ██║██╔════╝
@@ -10,6 +12,12 @@
 
                             wi-fi deauthentication toolkit
 ```
+
+[![License: GPLv3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
+[![Python 3](https://img.shields.io/badge/python-3-blue.svg)](https://www.python.org/)
+[![Platform](https://img.shields.io/badge/platform-Kali%20%7C%20Parrot-informational)](#where-this-is-at)
+
+</div>
 
 A terminal Wi-Fi (802.11) deauthentication toolkit for Linux, built for authorized security testing.
 

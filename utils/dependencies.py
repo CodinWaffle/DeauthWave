@@ -15,6 +15,12 @@ REQUIRED_TOOLS = {
     "airmon-ng": "aircrack-ng",
     "airodump-ng": "aircrack-ng",
     "aireplay-ng": "aircrack-ng",
+    # Kali/Parrot ship this out of the box, but it's the legacy wireless-tools
+    # package — a minimal Ubuntu (or other) server install often doesn't have
+    # it, and detect_wireless_interfaces() shells out to it directly, so
+    # without this check that shows up as a raw FileNotFoundError traceback
+    # instead of a clean "missing tool" message
+    "iwconfig": "wireless-tools",
 }
 
 CHECK_SPIN_SECONDS = 0.45  # purely cosmetic pause so each row reads as "checking..." instead of popping in instantly
