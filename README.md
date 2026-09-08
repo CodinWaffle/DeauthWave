@@ -23,7 +23,7 @@ A terminal Wi-Fi (802.11) deauthentication toolkit for Linux, built for authoriz
 
 ## What it does
 
-One module, no menu: **WiFi Deauth** puts an adapter into monitor mode, scans for nearby access points for 30 seconds, then sends 802.11 deauth frames at whichever one you pick, via `aireplay-ng`.
+ **WiFi Deauth** puts an adapter into monitor mode, scans for nearby access points for 30 seconds, then sends 802.11 deauth frames at whichever one you pick, via `aireplay-ng`.
 
 ```mermaid
 flowchart TD
