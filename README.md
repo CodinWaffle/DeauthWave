@@ -9,9 +9,9 @@
       ██║  ██║██╔══╝  ██╔══██║██║   ██║   ██║   ██╔══██║ ██║███╗██║██╔══██║╚██╗ ██╔╝██╔══╝  
       ██████╔╝███████╗██║  ██║╚██████╔╝   ██║   ██║  ██║ ╚███╔███╔╝██║  ██║ ╚████╔╝ ███████╗
       ╚═════╝ ╚══════╝╚═╝  ╚═╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝  ╚══╝╚══╝ ╚═╝  ╚═╝  ╚═══╝  ╚══════╝
-
-                                  wi-fi deauthentication toolkit
 ```
+
+*wi-fi deauthentication toolkit*
 
 [![License: GPLv3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 [![Python 3](https://img.shields.io/badge/python-3-blue.svg)](https://www.python.org/)
