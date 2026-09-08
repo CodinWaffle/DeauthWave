@@ -66,7 +66,7 @@ Built and tested on an actual Kali box, running against real hardware rather tha
 
 | Platform | Status |
 |---|---|
-| Kali Linux | supported, actively tested — this is where fixes get verified |
+| Kali Linux | supported, actively tested |
 | Parrot OS | supported, same Debian base, tooling, and command behavior as Kali, not actually tried yet |
 | Everything else | not supported |
 
