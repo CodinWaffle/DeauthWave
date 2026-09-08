@@ -39,10 +39,6 @@ def backup_stray_csv_files():
 
 
 def detect_wireless_interfaces():
-    # parse iwconfig's actual per-interface blocks instead of assuming a
-    # "wlan0"-style name — udev-assigned names (e.g. wlx00c0ca8a1234 for USB
-    # adapters) and non-wireless interfaces listed before it (eth0, lo, ...)
-    # would otherwise cause a real adapter to go undetected
     result = subprocess.run(["iwconfig"], capture_output=True, text=True)
     interfaces = []
     for block in result.stdout.split("\n\n"):
@@ -114,17 +110,11 @@ def prepare_monitor_mode(interface):
     return mon_interface
 
 
-SCAN_DURATION = 30  # seconds
+SCAN_DURATION = 30  
 
 
 def _render_scan_screen(elapsed, tick, prev_lines):
-    # rewind only the box's own line count instead of re-clearing the whole
-    # screen and reprinting the big logo/links block on every tick — that full
-    # redraw is what made the scan screen feel slow and flickery
     banner.rewind(prev_lines)
-
-    # the bar shrinks to fit whatever's left inside the box after borders/
-    # padding, so nothing can ever be wider than the box itself
     bar_width = max(10, min(32, banner.width() - 24))
     spin = banner.spinner_frame(tick, accent=banner.C.CYAN)
     bar = banner.progress_bar(elapsed, SCAN_DURATION, bar_width=bar_width, accent=banner.C.CYAN)
@@ -220,10 +210,6 @@ def scan_networks(interface):
 
             if elapsed >= SCAN_DURATION:
                 break
-
-            # sudo runs airodump-ng in its own pty, so a ctrl+c can stop that
-            # child on its own — if it's already gone, stop here too instead
-            # of waiting out the rest of the timer for nothing
             if scan_proc.poll() is not None:
                 early_exit_output = scan_proc.stdout.read().strip() if scan_proc.stdout else ""
                 break
@@ -238,8 +224,7 @@ def scan_networks(interface):
     _render_results_screen(prev_lines)
     banner.ok(f"scan complete, found {len(active_wireless_network)} network(s)")
 
-    # print this AFTER the results screen so it doesn't get wiped by a later
-    # rewind() before the user has a chance to read why airodump-ng stopped early
+   
     if early_exit_output is not None:
         banner.warn("airodump-ng exited before the scan timer finished")
         if early_exit_output:
@@ -274,10 +259,6 @@ def launch_attack(mon_interface, target):
     print(f"  target bssid  : {bssid}")
     print(f"  channel       : {channel}")
     banner.countdown(3, "attacking")
-
-    # tune the monitor interface to the target's channel before deauthing,
-    # otherwise aireplay-ng listens on whatever channel it was last left on
-    # and never sees the target's beacon frames
     subprocess.run(["sudo", "iwconfig", mon_interface, "channel", channel])
 
     banner.module_banner("wifi")
@@ -289,16 +270,6 @@ def launch_attack(mon_interface, target):
     banner.info("sending deauth frames... (press ctrl+c to stop)")
     print()
 
-    # give aireplay-ng a real pty instead of a plain pipe for its output —
-    # a plain pipe makes it detect a non-terminal and switch to full block
-    # buffering, which delays the log by several seconds; a pty keeps it
-    # thinking it's talking to a terminal, so it stays line-buffered.
-    #
-    # the raw bytes are relayed to our own stdout as-is, unmodified — aireplay-ng
-    # formats some of its own output with carriage returns and multi-line
-    # notices, and decoding/splitting/re-prefixing each "line" ourselves broke
-    # that formatting into a misaligned, staggered mess. relaying it untouched
-    # is exactly what you'd see running aireplay-ng directly in a terminal.
     sys.stdout.flush()
     master_fd, slave_fd = pty.openpty()
     attack_proc = subprocess.Popen(
@@ -314,7 +285,7 @@ def launch_attack(mon_interface, target):
             try:
                 chunk = os.read(master_fd, 4096)
             except OSError:
-                break  # the slave side closed once aireplay-ng exited
+                break  
             if not chunk:
                 break
             os.write(1, chunk)
@@ -338,8 +309,6 @@ def run():
         target = select_target(mon_interface)
         launch_attack(mon_interface, target)
     finally:
-        # always sweep up this run's airodump-ng .csv files, whether the attack
-        # finished, was interrupted, or errored out
         backup_stray_csv_files()
 
 
